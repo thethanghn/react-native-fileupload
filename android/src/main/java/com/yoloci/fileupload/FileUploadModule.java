@@ -12,15 +12,19 @@ import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.Callback;
 
 import java.io.DataInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.io.DataOutputStream;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 
+import com.facebook.react.bridge.WritableArray;
 import com.facebook.react.bridge.WritableMap;
 import java.io.FileInputStream;
 
+import org.json.JSONException;
 import org.json.JSONObject;
 
 public class FileUploadModule extends ReactContextBaseJavaModule {
@@ -137,41 +141,43 @@ public class FileUploadModule extends ReactContextBaseJavaModule {
             outputStream.writeBytes(twoHyphens + boundary + twoHyphens + lineEnd);
 
             // Responses from the server (code and message)
-
             int serverResponseCode = connection.getResponseCode();
-            String serverResponseMessage = connection.getResponseMessage();
-            if (serverResponseCode != 200 && serverResponseCode != 201 && serverResponseCode != 422) {
+            if (serverResponseCode != 200 && serverResponseCode != 201) {
                 fileInputStream.close();
                 outputStream.flush();
                 outputStream.close();
-                callback.invoke("Error happened: " + serverResponseMessage, null);
+                callback.invoke(responseToDictionary(connection), null);
             } else {
-                BufferedReader br = new BufferedReader(new InputStreamReader(connection.getInputStream()));
-                StringBuilder sb = new StringBuilder();
-                String line;
-                while ((line = br.readLine()) != null) {
-                    sb.append(line);
-                }
-                br.close();
-                String data = sb.toString();
-                JSONObject mainObject = new JSONObject();
-                mainObject.put("data", data);
-                mainObject.put("status", serverResponseCode);
-
-                BundleJSONConverter bjc = new BundleJSONConverter();
-                Bundle bundle = bjc.convertToBundle(mainObject);
-                WritableMap map = Arguments.fromBundle(bundle);
-
+                WritableMap map = responseToDictionary(connection);
                 fileInputStream.close();
                 outputStream.flush();
                 outputStream.close();
                 callback.invoke(null, map);
             }
-
-
-
         } catch(Exception ex) {
             callback.invoke("Error happened: " + ex.getMessage(), null);
         }
     }
+
+    private WritableMap responseToDictionary(HttpURLConnection connection) throws IOException, JSONException {
+        BufferedReader br = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+        StringBuilder sb = new StringBuilder();
+        String line;
+        while ((line = br.readLine()) != null) {
+            sb.append(line);
+        }
+        br.close();
+        String data = sb.toString();
+        JSONObject mainObject = new JSONObject();
+        mainObject.put("data", data);
+        mainObject.put("status", connection.getResponseCode());
+
+        BundleJSONConverter bjc = new BundleJSONConverter();
+        Bundle bundle = bjc.convertToBundle(mainObject);
+        WritableMap map = Arguments.fromBundle(bundle);
+
+        return map;
+
+    }
+
 }
