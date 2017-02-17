@@ -1,6 +1,7 @@
 package com.yoloci.fileupload;
 
 import android.os.Bundle;
+import android.support.annotation.NonNull;
 import android.util.Log;
 
 import com.facebook.react.bridge.Arguments;
@@ -144,50 +145,49 @@ public class FileUploadModule extends ReactContextBaseJavaModule {
             // Responses from the server (code and message)
             int serverResponseCode = connection.getResponseCode();
             if (serverResponseCode != 200 && serverResponseCode != 201) {
-                Log.i("response code")
-                if (serverResponseCode == 422) {
-                    WritableMap map = responseToDictionary(connection);
-                    fileInputStream.close();
-                    outputStream.flush();
-                    outputStream.close();
-                    callback.invoke(map, null);
-                } else {
-                    fileInputStream.close();
-                    outputStream.flush();
-                    outputStream.close();
-                    callback.invoke(connection.getResponseMessage(), null);
-                }
-            } else {
-                WritableMap map = responseToDictionary(connection);
+                String errors = getResponseString(connection.getErrorStream());
                 fileInputStream.close();
                 outputStream.flush();
                 outputStream.close();
-                callback.invoke(null, map);
+                callback.invoke(errors, null);
+            } else {
+                String data = getResponseString(connection.getInputStream());
+                JSONObject mainObject = new JSONObject();
+                mainObject.put("data", data);
+                mainObject.put("status", serverResponseCode);
+                fileInputStream.close();
+                outputStream.flush();
+                outputStream.close();
+                callback.invoke(null, convertJSONToMap(mainObject));
             }
         } catch(Exception ex) {
-            callback.invoke("Error happened: " + ex.getMessage(), null);
+            JSONObject mainObject = new JSONObject();
+            try {
+                mainObject.put("error", ex.getMessage());
+                callback.invoke(convertJSONToMap(mainObject), null);
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
         }
     }
 
-    private WritableMap responseToDictionary(HttpURLConnection connection) throws IOException, JSONException {
-        BufferedReader br = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+    @NonNull
+    private String getResponseString(InputStream stream) throws IOException {
+        BufferedReader br = new BufferedReader(new InputStreamReader(stream));
         StringBuilder sb = new StringBuilder();
         String line;
         while ((line = br.readLine()) != null) {
             sb.append(line);
         }
         br.close();
-        String data = sb.toString();
-        JSONObject mainObject = new JSONObject();
-        mainObject.put("data", data);
-        mainObject.put("status", connection.getResponseCode());
+        return sb.toString();
+    }
 
+    private WritableMap convertJSONToMap(JSONObject mainObject) throws JSONException {
         BundleJSONConverter bjc = new BundleJSONConverter();
         Bundle bundle = bjc.convertToBundle(mainObject);
-        WritableMap map = Arguments.fromBundle(bundle);
-
-        return map;
-
+        return Arguments.fromBundle(bundle);
     }
+
 
 }
