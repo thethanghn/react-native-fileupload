@@ -140,7 +140,7 @@ public class FileUploadModule extends ReactContextBaseJavaModule {
 
             int serverResponseCode = connection.getResponseCode();
             String serverResponseMessage = connection.getResponseMessage();
-            if (serverResponseCode != 200 && serverResponseCode != 201) {
+            if (serverResponseCode != 200 && serverResponseCode != 201 && serverResponseCode != 422) {
                 fileInputStream.close();
                 outputStream.flush();
                 outputStream.close();
