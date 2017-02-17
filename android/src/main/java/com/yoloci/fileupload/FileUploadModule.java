@@ -1,6 +1,7 @@
 package com.yoloci.fileupload;
 
 import android.os.Bundle;
+import android.util.Log;
 
 import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.ReadableArray;
@@ -143,10 +144,19 @@ public class FileUploadModule extends ReactContextBaseJavaModule {
             // Responses from the server (code and message)
             int serverResponseCode = connection.getResponseCode();
             if (serverResponseCode != 200 && serverResponseCode != 201) {
-                fileInputStream.close();
-                outputStream.flush();
-                outputStream.close();
-                callback.invoke(responseToDictionary(connection), null);
+                Log.i("response code")
+                if (serverResponseCode == 422) {
+                    WritableMap map = responseToDictionary(connection);
+                    fileInputStream.close();
+                    outputStream.flush();
+                    outputStream.close();
+                    callback.invoke(map, null);
+                } else {
+                    fileInputStream.close();
+                    outputStream.flush();
+                    outputStream.close();
+                    callback.invoke(connection.getResponseMessage(), null);
+                }
             } else {
                 WritableMap map = responseToDictionary(connection);
                 fileInputStream.close();
